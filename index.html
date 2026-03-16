@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventPro — Gestión de Eventos Corporativos</title>
+  <style>
+    /* ===== VARIABLES ===== */
+    :root {
+      --bg: #f4f5f9;
+      --surface: #ffffff;
+      --surface-2: #f9fafb;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-2: #6b7280;
+      --text-3: #9ca3af;
+      --accent: #6366f1;
+      --accent-h: #4f46e5;
+      --accent-lt: #eef2ff;
+      --danger: #ef4444;
+      --danger-lt: #fef2f2;
+      --success: #22c55e;
+      --success-lt: #f0fdf4;
+      --warning: #f59e0b;
+      --warning-lt: #fffbeb;
+
+      --s-prep:    #3b82f6; --s-prep-bg:    #eff6ff;
+      --s-active:  #f59e0b; --s-active-bg:  #fffbeb;
+      --s-done:    #22c55e; --s-done-bg:    #f0fdf4;
+
+      --sh0: 0 1px 2px rgba(0,0,0,.05);
+      --sh1: 0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+      --sh2: 0 4px 10px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04);
+      --sh3: 0 10px 28px rgba(0,0,0,.09),0 4px 8px rgba(0,0,0,.04);
+      --r-s: 5px; --r: 8px; --r-l: 12px; --r-xl: 16px;
+      --tr: 140ms ease;
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; }
+    * { margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 14px; line-height: 1.6;
+      color: var(--text); background: var(--bg); min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+    input, textarea, select {
+      font: inherit; color: inherit;
+      border: 1.5px solid var(--border); background: var(--surface);
+      border-radius: var(--r-s); padding: 8px 12px; width: 100%;
+      transition: border-color var(--tr), box-shadow var(--tr); outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+    }
+    textarea { resize: vertical; min-height: 82px; }
+    label {
+      display: block; font-size: 11.5px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px;
+      color: var(--text-2); margin-bottom: 5px;
+    }
+
+    /* ===== LAYOUT ===== */
+    .app-header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100; height: 54px;
+    }
+    .header-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 24px;
+      height: 100%; display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      font-size: 15px; font-weight: 800; letter-spacing: -.3px;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .logo-mark {
+      width: 26px; height: 26px; background: var(--accent);
+      border-radius: 6px; display: flex; align-items: center;
+      justify-content: center; color: white; font-size: 13px; font-weight: 900;
+    }
+    .logo-text span { color: var(--accent); }
+    .main { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+    /* ===== SYNC INDICATOR ===== */
+    .sync-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-2);
+    }
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--border); transition: background .3s;
+      flex-shrink: 0;
+    }
+    .sync-dot.ok      { background: var(--success); }
+    .sync-dot.syncing { background: var(--warning); animation: pulse 1s ease infinite; }
+    .sync-dot.error   { background: var(--danger); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ===== LOADING SCREEN ===== */
+    #loading-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; z-index: 999;
+    }
+    .spinner {
+      width: 34px; height: 34px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 650ms linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-txt { font-size: 13px; color: var(--text-2); }
+
+    /* ===== SETUP MODAL ===== */
+    #setup-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(4px);
+      z-index: 998; display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    #setup-modal.open { display: flex; }
+    .setup-box {
+      background: var(--surface); border-radius: var(--r-xl);
+      padding: 28px; max-width: 580px; width: 100%; box-shadow: var(--sh3);
+    }
+    .setup-box h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    .setup-box p  { font-size: 13px; color: var(--text-2); margin-bottom: 16px; line-height: 1.7; }
+    .sql-block {
+      background: #1e1e2e; color: #cdd6f4; border-radius: var(--r);
+      padding: 14px 16px; font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px; line-height: 1.7; white-space: pre; overflow-x: auto;
+      margin-bottom: 16px;
+    }
+    .setup-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 8px 16px; border-radius: var(--r); font-size: 13px;
+      font-weight: 500; transition: all var(--tr); white-space: nowrap; cursor: pointer;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-h); }
+    .btn-secondary {
+      background: var(--surface); color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--surface-2); border-color: #d1d5db; }
+    .btn-ghost { color: var(--text-2); padding: 6px 10px; border-radius: var(--r-s); }
+    .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 5px 11px; font-size: 12px; }
+    .btn-icon { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+    /* ===== BADGES ===== */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 20px; font-size: 11px;
+      font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .bdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .b-prep   { background: var(--s-prep-bg);   color: var(--s-prep);   }
+    .b-prep   .bdot { background: var(--s-prep); }
+    .b-active { background: var(--s-active-bg); color: var(--s-active); }
+    .b-active .bdot { background: var(--s-active); }
+    .b-done   { background: var(--s-done-bg);   color: var(--s-done);   }
+    .b-done   .bdot { background: var(--s-done); }
+
+    .fmt-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 500;
+    }
+    .fmt-teambuilding { background: #f5f3ff; color: #7c3aed; }
+    .fmt-offsite      { background: #fdf2f8; color: #be185d; }
+    .fmt-networking   { background: #ecfeff; color: #0891b2; }
+
+    /* ===== DASHBOARD ===== */
+    .dash-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 24px; gap: 16px;
+    }
+    .page-title { font-size: 21px; font-weight: 700; }
+    .page-sub   { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+
+    .stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-l); padding: 16px 20px; box-shadow: var(--sh0);
+    }
+    .stat-num { font-size: 30px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+    .stat-lbl { font-size: 12px; color: var(--text-2); font-weight: 500; }
+
+    .filter-bar { display: flex; gap: 7px; margin-bottom: 18px; flex-wrap: wrap; }
+    .filter-btn {
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+      color: var(--text-2); background: var(--surface);
+      border: 1.5px solid var(--border); transition: all var(--tr);
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .filter-btn.on { background: var(--accent); color: white; border-color: var(--accent); }
+
+    .events-grid { display: grid; gap: 10px; }
+    .ev-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-l); padding: 18px 22px; box-shadow: var(--sh0);
+      cursor: pointer; transition: all var(--tr);
+      display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 14px;
+    }
+    .ev-card:hover { border-color: var(--accent); box-shadow: var(--sh2); transform: translateY(-1px); }
+    .ev-card-title { font-size: 15px; font-weight: 600; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ev-card-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-2); }
+    .ev-card-meta-item { display: flex; align-items: center; gap: 4px; }
+    .ev-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+    .ev-card-stats { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-2); margin-top: 8px; }
+    .ev-card-stat { display: flex; align-items: center; gap: 4px; }
+    .ev-card-stat strong { color: var(--text); font-weight: 600; }
+
+    .empty-state { text-align: center; padding: 56px 24px; color: var(--text-2); }
+    .empty-icon { font-size: 38px; margin-bottom: 14px; opacity: .35; }
+    .empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 7px; }
+    .empty-state p { font-size: 13px; }
+
+    /* ===== DETAIL HEADER ===== */
+    .detail-header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 54px; z-index: 90;
+    }
+    .detail-header-inner {
+      max-width: 1200px; margin: 0 auto; padding: 18px 24px 0;
+    }
+    .detail-top {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+      padding-bottom: 14px;
+    }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12.5px; color: var(--text-2); transition: color var(--tr);
+      margin-bottom: 8px;
+    }
+    .back-btn:hover { color: var(--text); }
+    .detail-title { font-size: 19px; font-weight: 700; }
+    .detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
+    .detail-meta-txt { font-size: 12px; color: var(--text-2); }
+    .detail-actions { display: flex; gap: 7px; align-items: center; flex-shrink: 0; }
+
+    .status-selector { display: flex; gap: 5px; }
+    .st-opt {
+      padding: 4px 11px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .4px;
+      border: 1.5px solid transparent; transition: all var(--tr); cursor: pointer;
+    }
+    .st-prep   { color: var(--s-prep);   background: var(--s-prep-bg);   border-color: var(--s-prep-bg); }
+    .st-prep.on, .st-prep:hover   { border-color: var(--s-prep); }
+    .st-active { color: var(--s-active); background: var(--s-active-bg); border-color: var(--s-active-bg); }
+    .st-active.on, .st-active:hover { border-color: var(--s-active); }
+    .st-done   { color: var(--s-done);   background: var(--s-done-bg);   border-color: var(--s-done-bg); }
+    .st-done.on, .st-done:hover   { border-color: var(--s-done); }
+
+    /* ===== TABS ===== */
+    .tabs-nav {
+      display: flex; overflow-x: auto;
+      scrollbar-width: none; -ms-overflow-style: none;
+    }
+    .tabs-nav::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: 11px 17px; font-size: 13px; font-weight: 500;
+      color: var(--text-2); border-bottom: 2px solid transparent;
+      white-space: nowrap; transition: all var(--tr);
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-content { display: none; }
+    .tab-content.on { display: block; }
+
+    /* ===== SECTIONS ===== */
+    .section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-l); padding: 22px; margin-bottom: 14px; box-shadow: var(--sh0);
+    }
+    .sec-head {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;
+    }
+    .sec-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--text);
+    }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+    .fg { display: flex; flex-direction: column; }
+    .fg.full { grid-column: 1 / -1; }
+    .save-row {
+      display: flex; justify-content: flex-end;
+      margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
+    }
+
+    /* ===== DATA TABLE ===== */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th {
+      text-align: left; padding: 7px 10px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .4px; color: var(--text-2); border-bottom: 1px solid var(--border);
+    }
+    .data-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover td { background: var(--surface-2); }
+
+    .conf-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .conf-si  { background: var(--success-lt); color: #16a34a; }
+    .conf-no  { background: var(--danger-lt);  color: #dc2626; }
+    .conf-pend{ background: var(--warning-lt); color: #d97706; }
+
+    /* ===== CHECKLIST ===== */
+    .checklist { display: flex; flex-direction: column; gap: 4px; }
+    .cl-item {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: var(--r); border: 1px solid var(--border);
+      background: var(--surface); transition: all var(--tr); cursor: pointer;
+    }
+    .cl-item:hover { background: var(--surface-2); }
+    .cl-item.done { background: var(--success-lt); border-color: #bbf7d0; }
+    .cl-item.done .cl-text { text-decoration: line-through; color: var(--text-3); }
+    .cl-box {
+      width: 17px; height: 17px; min-width: 17px;
+      border-radius: 4px; border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; transition: all var(--tr);
+    }
+    .cl-item.done .cl-box { background: var(--success); border-color: var(--success); color: white; }
+    .cl-text { flex: 1; font-size: 13px; }
+    .add-row { display: flex; gap: 7px; margin-top: 10px; }
+    .add-row input { flex: 1; }
+
+    /* ===== PROGRESS BAR ===== */
+    .prog-wrap { background: var(--border); border-radius: 3px; height: 5px; overflow: hidden; margin-top: 3px; }
+    .prog-bar  { height: 100%; background: var(--accent); border-radius: 3px; transition: width 300ms; }
+    .prog-lbl  { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-bottom: 3px; }
+
+    /* ===== STAR RATING ===== */
+    .stars { display: flex; gap: 3px; margin-top: 4px; }
+    .star { font-size: 26px; color: var(--border); cursor: pointer; transition: color var(--tr); line-height: 1; }
+    .star.on, .star:hover { color: #f59e0b; }
+
+    /* ===== MODAL ===== */
+    .modal-ov {
+      position: fixed; inset: 0; background: rgba(0,0,0,.38); backdrop-filter: blur(3px);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      padding: 16px; opacity: 0; pointer-events: none; transition: opacity 160ms ease;
+    }
+    .modal-ov.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface); border-radius: var(--r-xl);
+      padding: 26px; width: 100%; max-width: 540px;
+      max-height: 90vh; overflow-y: auto; box-shadow: var(--sh3);
+      transform: translateY(10px); transition: transform 160ms ease;
+    }
+    .modal-ov.open .modal { transform: translateY(0); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close {
+      width: 30px; height: 30px; border-radius: var(--r-s);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-2); font-size: 20px; transition: all var(--tr);
+    }
+    .modal-close:hover { background: var(--surface-2); color: var(--text); }
+    .modal-foot {
+      display: flex; justify-content: flex-end; gap: 7px;
+      margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border);
+    }
+
+    /* ===== CONFIRM DIALOG ===== */
+    .dlg-ov {
+      position: fixed; inset: 0; background: rgba(0,0,0,.38); backdrop-filter: blur(3px);
+      z-index: 300; display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .dlg-box {
+      background: var(--surface); border-radius: var(--r-l);
+      padding: 22px; max-width: 400px; width: 100%; box-shadow: var(--sh3);
+    }
+    .dlg-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 7px; }
+    .dlg-box p  { font-size: 13px; color: var(--text-2); margin-bottom: 18px; }
+    .dlg-foot   { display: flex; justify-content: flex-end; gap: 7px; }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; bottom: 22px; right: 22px;
+      padding: 11px 16px; border-radius: var(--r); font-size: 13px; font-weight: 500;
+      z-index: 500; box-shadow: var(--sh3);
+      transform: translateY(50px); opacity: 0; transition: all 180ms ease;
+      display: flex; align-items: center; gap: 7px; pointer-events: none;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast-ok  { background: #111827; color: white; }
+    .toast-err { background: #dc2626; color: white; }
+
+    /* ===== VIEWS ===== */
+    .view { display: none; }
+    .view.on { display: block; }
+
+    /* ===== SUMBAR ===== */
+    .sumbar { display: flex; gap: 20px; margin-bottom: 14px; flex-wrap: wrap; }
+    .sumbar-item { font-size: 12.5px; color: var(--text-2); }
+    .sumbar-item strong { color: var(--text); }
+
+    /* ===== BUDGET BREAKDOWN ===== */
+    .budget-total-box {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 14px 18px; margin-top: 16px;
+    }
+    .budget-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 3px 0; font-size: 13px;
+    }
+    .budget-row.final {
+      font-size: 15px; font-weight: 700;
+      padding-top: 11px; margin-top: 8px; border-top: 2px solid var(--border);
+    }
+
+    /* ===== AGENDA ===== */
+    .agenda-list { display: flex; flex-direction: column; gap: 6px; }
+    .agenda-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 11px 14px; border: 1px solid var(--border);
+      border-radius: var(--r); background: var(--surface);
+      transition: all var(--tr);
+    }
+    .agenda-item.past { opacity: 0.45; background: var(--surface-2); }
+    .agenda-item.past .agenda-desc { text-decoration: line-through; color: var(--text-3); }
+    .agenda-time {
+      font-size: 13px; font-weight: 700; color: var(--accent);
+      min-width: 52px; padding-top: 2px; flex-shrink: 0;
+    }
+    .agenda-item.past .agenda-time { color: var(--text-3); }
+    .agenda-body { flex: 1; min-width: 0; }
+    .agenda-desc { font-size: 13px; font-weight: 500; }
+    .agenda-resp { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+    .agenda-actions { display: flex; gap: 3px; flex-shrink: 0; }
+
+    /* ===== FILES ===== */
+    .files-grid { display: flex; flex-direction: column; gap: 8px; }
+    .file-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--r); background: var(--surface);
+      transition: all var(--tr);
+    }
+    .file-item:hover { background: var(--surface-2); }
+    .file-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: var(--r-s); border: 1px solid var(--border); flex-shrink: 0; }
+    .file-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+    .file-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 640px) {
+      .main { padding: 18px 14px; }
+      .header-inner { padding: 0 14px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .ev-card { grid-template-columns: 1fr; }
+      .ev-card-right { flex-direction: row; align-items: center; justify-content: space-between; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .dash-header, .detail-top { flex-direction: column; }
+      .detail-actions { justify-content: flex-start; flex-wrap: wrap; }
+      .data-table th:nth-child(3), .data-table td:nth-child(3),
+      .data-table th:nth-child(6), .data-table td:nth-child(6) { display: none; }
+      .sync-txt { display: none; }
+      .file-actions { flex-direction: column; gap: 3px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== LOADING SCREEN ===== -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <div class="loading-txt" id="loading-txt">Conectando con la nube…</div>
+</div>
+
+<!-- ===== SETUP MODAL ===== -->
+<div id="setup-modal">
+  <div class="setup-box">
+    <h2>⚙️ Configuración inicial de Supabase</h2>
+    <p>No se pudo crear la tabla automáticamente. Ejecuta este SQL en el <strong>Editor SQL de tu proyecto Supabase</strong> y luego haz clic en "Continuar".</p>
+    <div class="sql-block" id="setup-sql"></div>
+    <div class="setup-actions">
+      <button class="btn btn-secondary" onclick="copySql()">Copiar SQL</button>
+      <button class="btn btn-primary" onclick="retryAfterSetup()">Ya ejecuté el SQL — Continuar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-mark">E</div>
+      <div class="logo-text">Event<span>Pro</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="sync-indicator">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span class="sync-txt" id="sync-txt">Conectando…</span>
+      </div>
+      <div id="hdr-right"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== CONFIRM SLOT ===== -->
+<div id="dlg"></div>
+
+<!-- ===== MODAL: NUEVO EVENTO ===== -->
+<div class="modal-ov" id="m-new">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Nuevo evento</div>
+      <button class="modal-close" onclick="closeM('m-new')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Nombre del evento *</label>
+        <input id="mn-nombre" type="text" placeholder="Ej: Team Building Q2 2025">
+      </div>
+      <div class="fg">
+        <label>Cliente *</label>
+        <input id="mn-cliente" type="text" placeholder="Empresa o persona">
+      </div>
+      <div class="fg">
+        <label>Tipo de cliente</label>
+        <select id="mn-tipo">
+          <option value="externo">Externo</option>
+          <option value="interno">Interno</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Fecha de inicio</label>
+        <input id="mn-fecha-inicio" type="date">
+      </div>
+      <div class="fg">
+        <label>Fecha de fin</label>
+        <input id="mn-fecha-fin" type="date">
+      </div>
+      <div class="fg">
+        <label>Hora de inicio</label>
+        <input id="mn-hora-inicio" type="time">
+      </div>
+      <div class="fg">
+        <label>Hora de fin</label>
+        <input id="mn-hora-fin" type="time">
+      </div>
+      <div class="fg">
+        <label>Formato</label>
+        <select id="mn-fmt">
+          <option value="teambuilding">Team Building</option>
+          <option value="offsite">Offsite</option>
+          <option value="networking">Networking</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Ubicación</label>
+        <input id="mn-ubi" type="text" placeholder="Ciudad o espacio">
+      </div>
+      <div class="fg">
+        <label>Asistentes esperados</label>
+        <input id="mn-asist" type="number" placeholder="50" min="1">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeM('m-new')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-create-ev" onclick="createNewEvent()">Crear evento →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: PROVEEDOR ===== -->
+<div class="modal-ov" id="m-vendor">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="m-vendor-title">Añadir proveedor</div>
+      <button class="modal-close" onclick="closeM('m-vendor')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>Nombre *</label>
+        <input id="vd-nombre" type="text" placeholder="Empresa o persona">
+      </div>
+      <div class="fg">
+        <label>Tipo de servicio</label>
+        <input id="vd-svc" type="text" placeholder="Catering, AV, Transporte…">
+      </div>
+      <div class="fg">
+        <label>Contacto</label>
+        <input id="vd-contact" type="text" placeholder="Email o teléfono">
+      </div>
+      <div class="fg">
+        <label>Estado</label>
+        <select id="vd-conf">
+          <option value="pendiente">Pendiente</option>
+          <option value="si">Confirmado</option>
+          <option value="no">No confirmado</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Cantidad</label>
+        <input id="vd-cantidad" type="number" placeholder="1" min="1" step="1" value="1">
+      </div>
+      <div class="fg">
+        <label>Precio unitario (€)</label>
+        <input id="vd-precio" type="number" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="fg full">
+        <label>Notas</label>
+        <textarea id="vd-notas" placeholder="Condiciones, observaciones…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeM('m-vendor')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVendor()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP VIEWS ===== -->
+<div id="app">
+
+  <!-- DASHBOARD -->
+  <div class="view on" id="v-dash">
+    <div class="main">
+      <div class="dash-header">
+        <div>
+          <div class="page-title">Panel de eventos</div>
+          <div class="page-sub" id="dash-sub"></div>
+        </div>
+        <button class="btn btn-primary" onclick="openM('m-new')">+ Nuevo evento</button>
+      </div>
+      <div class="stats-row" id="stats-row"></div>
+      <div class="filter-bar" id="filter-bar"></div>
+      <div class="events-grid" id="events-grid"></div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="view" id="v-detail">
+    <div class="detail-header" id="detail-header">
+      <div class="detail-header-inner">
+        <div class="detail-top">
+          <div>
+            <button class="back-btn" onclick="goTo('dash')">← Volver al panel</button>
+            <div class="detail-title" id="d-title"></div>
+            <div class="detail-meta" id="d-meta"></div>
+          </div>
+          <div class="detail-actions" id="d-actions"></div>
+        </div>
+        <div class="tabs-nav" id="tabs-nav"></div>
+      </div>
+    </div>
+    <div class="main" id="d-content"></div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════════
+const SB_URL = 'https://vphtiauvzgtbzdssqfai.supabase.co';
+const SB_KEY = 'sb_publishable_CCGkQTElQhS56Ah4bNy1jA_5P7pk71r';
+const API         = SB_URL + '/rest/v1';
+const STORAGE_URL = SB_URL + '/storage/v1';
+const HDRS = {
+  'apikey':        SB_KEY,
+  'Authorization': 'Bearer ' + SB_KEY,
+  'Content-Type':  'application/json',
+};
+
+const SETUP_SQL = `-- Run this in your Supabase SQL Editor
+
+-- 1. Events table
+create table if not exists events (
+  id          text        primary key,
+  created_at  timestamptz not null default now(),
+  estado      text        not null default 'preparacion',
+  data        jsonb       not null default '{}'
+);
+alter table events disable row level security;
+
+-- 2. Storage bucket for event files
+insert into storage.buckets (id, name, public)
+values ('event-files', 'event-files', true)
+on conflict (id) do nothing;
+
+-- 3. Storage access policies
+drop policy if exists "event-files-select" on storage.objects;
+drop policy if exists "event-files-insert" on storage.objects;
+drop policy if exists "event-files-delete" on storage.objects;
+create policy "event-files-select" on storage.objects
+  for select using (bucket_id = 'event-files');
+create policy "event-files-insert" on storage.objects
+  for insert with check (bucket_id = 'event-files');
+create policy "event-files-delete" on storage.objects
+  for delete using (bucket_id = 'event-files');`;
+
+// ══════════════════════════════════════════════
+// IN-MEMORY CACHE
+// ══════════════════════════════════════════════
+let _events    = [];
+let _syncState = 'connecting';
+
+function setSyncState(s, txt) {
+  _syncState = s;
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-txt');
+  if (!dot) return;
+  dot.className = 'sync-dot ' + s;
+  lbl.textContent = { connecting: 'Conectando…', ok: 'Sincronizado', syncing: 'Guardando…', error: 'Error de conexión' }[s] || s;
+}
+
+// ══════════════════════════════════════════════
+// SUPABASE REST HELPERS
+// ══════════════════════════════════════════════
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(API + path, { headers: HDRS, ...opts });
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${body}`);
+  }
+  return res;
+}
+
+async function dbLoad() {
+  const res = await sbFetch('/events?order=created_at.desc', {
+    headers: { ...HDRS, Accept: 'application/json' }
+  });
+  const rows = await res.json();
+  _events = rows.map(r => ({ ...r.data, id: r.id, creadoEn: r.created_at, estado: r.estado }));
+}
+
+async function dbUpsert(ev) {
+  setSyncState('syncing');
+  try {
+    await sbFetch('/events', {
+      method:  'POST',
+      headers: { ...HDRS, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ id: ev.id, created_at: ev.creadoEn, estado: ev.estado, data: ev }),
+    });
+    setSyncState('ok');
+  } catch (err) {
+    setSyncState('error');
+    console.error('Supabase upsert error:', err);
+    throw err;
+  }
+}
+
+async function dbDelete(id) {
+  setSyncState('syncing');
+  try {
+    await sbFetch(`/events?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+    setSyncState('ok');
+  } catch (err) {
+    setSyncState('error');
+    throw err;
+  }
+}
+
+// ══════════════════════════════════════════════
+// SUPABASE STORAGE HELPERS
+// ══════════════════════════════════════════════
+async function uploadFile(eventId, file) {
+  const ext  = file.name.split('.').pop().toLowerCase();
+  const path = `${eventId}/${uid()}.${ext}`;
+  const res  = await fetch(`${STORAGE_URL}/object/event-files/${path}`, {
+    method:  'POST',
+    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': file.type },
+    body: file,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText);
+    throw new Error('Storage upload failed: ' + body);
+  }
+  return path;
+}
+
+async function deleteFile(path) {
+  await fetch(`${STORAGE_URL}/object/event-files/${path}`, {
+    method:  'DELETE',
+    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
+  });
+}
+
+function getFileUrl(path) {
+  return `${STORAGE_URL}/object/public/event-files/${path}`;
+}
+
+// ══════════════════════════════════════════════
+// SCHEMA SETUP
+// ══════════════════════════════════════════════
+async function dbSetup() {
+  try {
+    const res = await fetch(`https://api.supabase.com/v1/projects/vphtiauvzgtbzdssqfai/database/query`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: SETUP_SQL }),
+    });
+    if (res.ok) return true;
+  } catch (e) { console.warn('[EventPro] Management API unavailable:', e.message); }
+
+  try {
+    const res = await fetch(`${SB_URL}/pg-meta/v1/query`, {
+      method:  'POST',
+      headers: { ...HDRS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: SETUP_SQL }),
+    });
+    if (res.ok) return true;
+  } catch (e) { console.warn('[EventPro] pg-meta unavailable:', e.message); }
+
+  return false;
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+async function dbInit() {
+  setLoadingTxt('Conectando con Supabase…');
+  try {
+    await dbLoad();
+    if (_events.length === 0) {
+      setLoadingTxt('Primera ejecución, cargando datos de ejemplo…');
+      const samples = buildSampleEvents();
+      for (const ev of samples) { await dbUpsert(ev); _events.unshift(ev); }
+    }
+    setSyncState('ok');
+    hideLoading();
+    render();
+  } catch (err) {
+    console.error('[EventPro] Load failed:', err);
+    setLoadingTxt('Creando tabla en Supabase…');
+    const created = await dbSetup();
+    if (created) {
+      try {
+        await dbLoad();
+        if (_events.length === 0) {
+          const samples = buildSampleEvents();
+          for (const ev of samples) { await dbUpsert(ev); _events.unshift(ev); }
+        }
+        setSyncState('ok');
+        hideLoading();
+        render();
+        return;
+      } catch (e2) { console.error('[EventPro] Still failing after setup:', e2); }
+    }
+    hideLoading();
+    showSetupModal();
+  }
+}
+
+function setLoadingTxt(t) { const el = document.getElementById('loading-txt'); if (el) el.textContent = t; }
+function hideLoading()    { const el = document.getElementById('loading-screen'); if (el) el.style.display = 'none'; }
+
+function showSetupModal() {
+  document.getElementById('setup-sql').textContent = SETUP_SQL;
+  document.getElementById('setup-modal').classList.add('open');
+  setSyncState('error');
+}
+
+function copySql() {
+  navigator.clipboard.writeText(SETUP_SQL).then(() => toast('SQL copiado al portapapeles'));
+}
+
+async function retryAfterSetup() {
+  document.getElementById('setup-modal').classList.remove('open');
+  document.getElementById('loading-screen').style.display = 'flex';
+  setLoadingTxt('Conectando…');
+  try {
+    await dbLoad();
+    if (_events.length === 0) {
+      const samples = buildSampleEvents();
+      for (const ev of samples) { await dbUpsert(ev); _events.unshift(ev); }
+    }
+    setSyncState('ok');
+    hideLoading();
+    render();
+  } catch (err) {
+    hideLoading();
+    toast('Aún no se puede conectar. Verifica que ejecutaste el SQL.', false);
+    setSyncState('error');
+    showSetupModal();
+  }
+}
+
+// ══════════════════════════════════════════════
+// STORAGE HELPERS
+// ══════════════════════════════════════════════
+function load()    { return _events; }
+function getEv(id) { return _events.find(e => e.id === id) || null; }
+function uid()     { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function mutEv(id, fn) {
+  const i = _events.findIndex(e => e.id === id);
+  if (i < 0) return;
+  _events[i] = fn(_events[i]);
+  dbUpsert(_events[i]).catch(err => toast('Error al guardar: ' + err.message, false));
+}
+
+// ══════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════
+const TABS = [
+  { id: 'brief',       label: 'Brief'               },
+  { id: 'proveedores', label: 'Control Presupuesto' },
+  { id: 'materiales',  label: 'Materiales'          },
+  { id: 'programa',    label: 'Programa'            },
+  { id: 'postevento',  label: 'Post-Evento'         },
+  { id: 'archivos',    label: 'Archivos'            },
+];
+
+const ESTADO = {
+  preparacion: { lbl: 'En preparación', cls: 'b-prep',   stCls: 'st-prep'   },
+  'en-curso':  { lbl: 'En curso',       cls: 'b-active', stCls: 'st-active' },
+  finalizado:  { lbl: 'Finalizado',     cls: 'b-done',   stCls: 'st-done'   },
+};
+
+const FORMATO = { teambuilding: 'Team Building', offsite: 'Offsite', networking: 'Networking' };
+
+const CONFIRMADO = {
+  si:        { lbl: 'Confirmado',    cls: 'conf-si'   },
+  no:        { lbl: 'No confirmado', cls: 'conf-no'   },
+  pendiente: { lbl: 'Pendiente',     cls: 'conf-pend' },
+};
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const S = { view: 'dash', eid: null, tab: 'brief', filter: 'todos' };
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function goTo(view, eid, tab) {
+  S.view = view;
+  if (eid) S.eid = eid;
+  if (tab) S.tab = tab; else if (view === 'detail') S.tab = 'brief';
+  render();
+  window.scrollTo(0, 0);
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+let _tt;
+function toast(msg, ok = true) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (ok ? 'toast-ok' : 'toast-err');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ══════════════════════════════════════════════
+// MODALS
+// ══════════════════════════════════════════════
+function openM(id)  { document.getElementById(id).classList.add('open'); }
+function closeM(id) { document.getElementById(id).classList.remove('open'); }
+
+// ══════════════════════════════════════════════
+// CONFIRM DIALOG
+// ══════════════════════════════════════════════
+function confirm(title, msg, yesCls, yesLbl, cb) {
+  document.getElementById('dlg').innerHTML = `
+    <div class="dlg-ov">
+      <div class="dlg-box">
+        <h3>${h(title)}</h3>
+        <p>${h(msg)}</p>
+        <div class="dlg-foot">
+          <button class="btn btn-secondary" onclick="closeDlg()">Cancelar</button>
+          <button class="btn ${yesCls}" id="dlg-yes">${yesLbl}</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('dlg-yes').onclick = () => { closeDlg(); cb(); };
+}
+function closeDlg() { document.getElementById('dlg').innerHTML = ''; }
+
+// ══════════════════════════════════════════════
+// CREATE EVENT
+// ══════════════════════════════════════════════
+async function createNewEvent() {
+  const nombre  = g('mn-nombre').value.trim();
+  const cliente = g('mn-cliente').value.trim();
+  if (!nombre)  { toast('El nombre es obligatorio', false); return; }
+  if (!cliente) { toast('El cliente es obligatorio', false); return; }
+
+  const btn = document.getElementById('btn-create-ev');
+  btn.disabled = true;
+  btn.textContent = 'Creando…';
+
+  const ev = {
+    id: uid(), creadoEn: new Date().toISOString(), estado: 'preparacion',
+    brief: {
+      nombre, cliente,
+      tipoCliente:         g('mn-tipo').value,
+      fechaInicio:         g('mn-fecha-inicio').value,
+      fechaFin:            g('mn-fecha-fin').value,
+      horaInicio:          g('mn-hora-inicio').value,
+      horaFin:             g('mn-hora-fin').value,
+      ubicacion:           g('mn-ubi').value.trim(),
+      formato:             g('mn-fmt').value,
+      asistentesEsperados: g('mn-asist').value,
+      objetivos: '', notas: '',
+    },
+    proveedores:   [],
+    materiales:    [],
+    programa:      [],
+    programaNotas: '',
+    postEvento: {
+      queSalioBien: '', queMejorar: '', asistenciaReal: '',
+      satisfaccionCliente: 0, feedbackCliente: '', tareasFollowUp: [],
+    },
+    archivos: [],
+  };
+
+  try {
+    await dbUpsert(ev);
+    _events.unshift(ev);
+    closeM('m-new');
+    ['mn-nombre','mn-cliente','mn-ubi','mn-asist','mn-fecha-inicio','mn-fecha-fin','mn-hora-inicio','mn-hora-fin'].forEach(id => g(id).value = '');
+    toast('✓ Evento creado');
+    goTo('detail', ev.id, 'brief');
+  } catch (err) {
+    toast('Error al crear el evento: ' + err.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Crear evento →';
+  }
+}
+
+// ══════════════════════════════════════════════
+// DELETE EVENT
+// ══════════════════════════════════════════════
+function deleteEvent(id) {
+  confirm('¿Eliminar este evento?', 'Se perderán todos los datos. Esta acción no se puede deshacer.', 'btn-danger', 'Eliminar', async () => {
+    try {
+      await dbDelete(id);
+      _events = _events.filter(e => e.id !== id);
+      goTo('dash');
+      toast('Evento eliminado');
+    } catch (err) {
+      toast('Error al eliminar: ' + err.message, false);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function render() {
+  document.getElementById('v-dash').classList.toggle('on', S.view === 'dash');
+  document.getElementById('v-detail').classList.toggle('on', S.view === 'detail');
+  if (S.view === 'dash')   renderDash();
+  if (S.view === 'detail') renderDetail();
+}
+
+// ══════════════════════════════════════════════
+// DATE HELPERS
+// ══════════════════════════════════════════════
+function evDateDisplay(b) {
+  const start = b.fechaInicio || b.fecha;
+  const end   = b.fechaFin;
+  if (!start) return null;
+  if (end && end !== start) return fmtDate(start) + ' – ' + fmtDate(end);
+  return fmtDate(start);
+}
+
+// ══════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════
+function renderDash() {
+  document.getElementById('hdr-right').innerHTML = '';
+  const evts = load();
+  const now  = new Date();
+  const sub  = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('dash-sub').textContent = sub.charAt(0).toUpperCase() + sub.slice(1);
+
+  const cnt = {
+    total: evts.length,
+    prep:  evts.filter(e => e.estado === 'preparacion').length,
+    cur:   evts.filter(e => e.estado === 'en-curso').length,
+    done:  evts.filter(e => e.estado === 'finalizado').length,
+  };
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${cnt.total}</div><div class="stat-lbl">Total eventos</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--s-prep)">${cnt.prep}</div><div class="stat-lbl">En preparación</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--s-active)">${cnt.cur}</div><div class="stat-lbl">En curso</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--s-done)">${cnt.done}</div><div class="stat-lbl">Finalizados</div></div>`;
+
+  const fltrs = [
+    { id: 'todos', lbl: 'Todos' },
+    { id: 'preparacion', lbl: 'En preparación' },
+    { id: 'en-curso', lbl: 'En curso' },
+    { id: 'finalizado', lbl: 'Finalizados' },
+  ];
+  document.getElementById('filter-bar').innerHTML = fltrs.map(f =>
+    `<button class="filter-btn ${S.filter === f.id ? 'on' : ''}" onclick="setFilter('${f.id}')">${f.lbl}</button>`
+  ).join('');
+
+  const list = S.filter === 'todos' ? evts : evts.filter(e => e.estado === S.filter);
+  const grid = document.getElementById('events-grid');
+
+  if (list.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📅</div>
+        <h3>${evts.length === 0 ? 'No hay eventos todavía' : 'Sin resultados para este filtro'}</h3>
+        <p>${evts.length === 0 ? 'Crea tu primer evento para empezar.' : 'Prueba seleccionando otro estado.'}</p>
+        ${evts.length === 0 ? `<br><button class="btn btn-primary" onclick="openM('m-new')">+ Crear primer evento</button>` : ''}
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(ev => {
+    const st      = ESTADO[ev.estado] || ESTADO.preparacion;
+    const fmt     = FORMATO[ev.brief.formato] || ev.brief.formato;
+    const vConf   = ev.proveedores.filter(p => p.confirmado === 'si').length;
+    const mDone   = ev.materiales.filter(m => m.estado === 'listo').length;
+    const fechaTxt = evDateDisplay(ev.brief) || 'Sin fecha';
+
+    // Grand total with IVA
+    const grandTotal = ev.proveedores.reduce((s, p) => {
+      const pu = parseFloat(p.precioUnit || p.precio) || 0;
+      const qt = parseInt(p.cantidad) || 1;
+      return s + pu * qt * 1.21;
+    }, 0);
+
+    return `
+      <div class="ev-card" onclick="goTo('detail','${ev.id}')">
+        <div>
+          <div class="ev-card-title">${h(ev.brief.nombre)}</div>
+          <div class="ev-card-meta">
+            <span class="ev-card-meta-item">👤 ${h(ev.brief.cliente)}</span>
+            <span class="ev-card-meta-item">📅 ${fechaTxt}</span>
+            ${ev.brief.ubicacion ? `<span class="ev-card-meta-item">📍 ${h(ev.brief.ubicacion)}</span>` : ''}
+            ${ev.brief.asistentesEsperados ? `<span class="ev-card-meta-item">👥 ${ev.brief.asistentesEsperados} pers.</span>` : ''}
+          </div>
+          <div class="ev-card-stats">
+            <span class="ev-card-stat">🏢 Prov.: <strong>${ev.proveedores.length}</strong> (${vConf} conf.)</span>
+            <span class="ev-card-stat">✓ Mat.: <strong>${mDone}/${ev.materiales.length}</strong></span>
+            ${grandTotal > 0 ? `<span class="ev-card-stat">💶 <strong>€${fmtNum(grandTotal)}</strong> c/IVA</span>` : ''}
+          </div>
+        </div>
+        <div class="ev-card-right">
+          <span class="badge ${st.cls}"><span class="bdot"></span>${st.lbl}</span>
+          <span class="fmt-badge fmt-${ev.brief.formato || 'teambuilding'}">${fmt}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function setFilter(f) { S.filter = f; renderDash(); }
+
+// ══════════════════════════════════════════════
+// DETAIL
+// ══════════════════════════════════════════════
+function renderDetail() {
+  const ev = getEv(S.eid);
+  if (!ev) { goTo('dash'); return; }
+
+  const st  = ESTADO[ev.estado] || ESTADO.preparacion;
+  const fmt = FORMATO[ev.brief.formato] || ev.brief.formato;
+  const fechaTxt = evDateDisplay(ev.brief);
+
+  document.getElementById('d-title').textContent = ev.brief.nombre;
+  document.getElementById('d-meta').innerHTML = `
+    <span class="badge ${st.cls}"><span class="bdot"></span>${st.lbl}</span>
+    <span class="fmt-badge fmt-${ev.brief.formato || 'teambuilding'}">${fmt}</span>
+    ${fechaTxt     ? `<span class="detail-meta-txt">📅 ${fechaTxt}</span>` : ''}
+    ${ev.brief.cliente   ? `<span class="detail-meta-txt">👤 ${h(ev.brief.cliente)}</span>` : ''}
+    ${ev.brief.ubicacion ? `<span class="detail-meta-txt">📍 ${h(ev.brief.ubicacion)}</span>` : ''}`;
+
+  document.getElementById('d-actions').innerHTML = `
+    <div class="status-selector">
+      <button class="st-opt st-prep   ${ev.estado==='preparacion'?'on':''}" onclick="changeEstado('preparacion')">En preparación</button>
+      <button class="st-opt st-active ${ev.estado==='en-curso'   ?'on':''}" onclick="changeEstado('en-curso')">En curso</button>
+      <button class="st-opt st-done   ${ev.estado==='finalizado' ?'on':''}" onclick="changeEstado('finalizado')">Finalizado</button>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="deleteEvent('${ev.id}')">Eliminar</button>`;
+
+  document.getElementById('tabs-nav').innerHTML = TABS.map(t =>
+    `<button class="tab-btn ${S.tab === t.id ? 'on' : ''}" onclick="switchTab('${t.id}')">${t.label}</button>`
+  ).join('');
+
+  document.getElementById('d-content').innerHTML = TABS.map(t =>
+    `<div class="tab-content ${S.tab === t.id ? 'on' : ''}" id="tc-${t.id}">${renderTab(t.id, ev)}</div>`
+  ).join('');
+}
+
+function switchTab(tabId) {
+  S.tab = tabId;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('on', b.getAttribute('onclick').includes(`'${tabId}'`)));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('on', c.id === 'tc-' + tabId));
+}
+
+function changeEstado(estado) {
+  mutEv(S.eid, ev => ({ ...ev, estado }));
+  renderDetail();
+  toast('Estado actualizado');
+}
+
+// ══════════════════════════════════════════════
+// TABS ROUTER
+// ══════════════════════════════════════════════
+function renderTab(id, ev) {
+  switch(id) {
+    case 'brief':       return tBrief(ev);
+    case 'proveedores': return tPresupuesto(ev);
+    case 'materiales':  return tMateriales(ev);
+    case 'programa':    return tPrograma(ev);
+    case 'postevento':  return tPostEvento(ev);
+    case 'archivos':    return tArchivos(ev);
+    default: return '';
+  }
+}
+
+// ══════════════════════════════════════════════
+// TAB: BRIEF
+// ══════════════════════════════════════════════
+function tBrief(ev) {
+  const b = ev.brief;
+  return `
+    <div class="section">
+      <div class="sec-head"><div class="sec-title">Información del evento</div></div>
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Nombre del evento</label>
+          <input id="b-nombre" type="text" value="${a(b.nombre)}">
+        </div>
+        <div class="fg">
+          <label>Cliente</label>
+          <input id="b-cliente" type="text" value="${a(b.cliente)}">
+        </div>
+        <div class="fg">
+          <label>Tipo de cliente</label>
+          <select id="b-tipo">
+            <option value="externo" ${b.tipoCliente==='externo'?'selected':''}>Externo</option>
+            <option value="interno" ${b.tipoCliente==='interno'?'selected':''}>Interno</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Fecha de inicio</label>
+          <input id="b-fecha-inicio" type="date" value="${a(b.fechaInicio || b.fecha)}">
+        </div>
+        <div class="fg">
+          <label>Fecha de fin</label>
+          <input id="b-fecha-fin" type="date" value="${a(b.fechaFin)}">
+        </div>
+        <div class="fg">
+          <label>Hora de inicio</label>
+          <input id="b-hora-inicio" type="time" value="${a(b.horaInicio)}">
+        </div>
+        <div class="fg">
+          <label>Hora de fin</label>
+          <input id="b-hora-fin" type="time" value="${a(b.horaFin)}">
+        </div>
+        <div class="fg">
+          <label>Ubicación</label>
+          <input id="b-ubi" type="text" value="${a(b.ubicacion)}">
+        </div>
+        <div class="fg">
+          <label>Formato</label>
+          <select id="b-fmt">
+            <option value="teambuilding" ${b.formato==='teambuilding'?'selected':''}>Team Building</option>
+            <option value="offsite"      ${b.formato==='offsite'     ?'selected':''}>Offsite</option>
+            <option value="networking"   ${b.formato==='networking'  ?'selected':''}>Networking</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Asistentes esperados</label>
+          <input id="b-asist" type="number" value="${a(b.asistentesEsperados)}" min="1">
+        </div>
+        <div class="fg full">
+          <label>Objetivos</label>
+          <textarea id="b-obj">${h(b.objetivos)}</textarea>
+        </div>
+        <div class="fg full">
+          <label>Notas adicionales</label>
+          <textarea id="b-notas">${h(b.notas)}</textarea>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="btn btn-primary" onclick="saveBrief()">Guardar cambios</button>
+      </div>
+    </div>`;
+}
+
+function saveBrief() {
+  mutEv(S.eid, ev => ({
+    ...ev,
+    brief: {
+      ...ev.brief,
+      nombre:              g('b-nombre').value.trim(),
+      cliente:             g('b-cliente').value.trim(),
+      tipoCliente:         g('b-tipo').value,
+      fechaInicio:         g('b-fecha-inicio').value,
+      fechaFin:            g('b-fecha-fin').value,
+      horaInicio:          g('b-hora-inicio').value,
+      horaFin:             g('b-hora-fin').value,
+      ubicacion:           g('b-ubi').value.trim(),
+      formato:             g('b-fmt').value,
+      asistentesEsperados: g('b-asist').value,
+      objetivos:           g('b-obj').value.trim(),
+      notas:               g('b-notas').value.trim(),
+    }
+  }));
+  const ev      = getEv(S.eid);
+  const st      = ESTADO[ev.estado] || ESTADO.preparacion;
+  const fmt     = FORMATO[ev.brief.formato] || ev.brief.formato;
+  const fechaTxt = evDateDisplay(ev.brief);
+  document.getElementById('d-title').textContent = ev.brief.nombre;
+  document.getElementById('d-meta').innerHTML = `
+    <span class="badge ${st.cls}"><span class="bdot"></span>${st.lbl}</span>
+    <span class="fmt-badge fmt-${ev.brief.formato || 'teambuilding'}">${fmt}</span>
+    ${fechaTxt     ? `<span class="detail-meta-txt">📅 ${fechaTxt}</span>` : ''}
+    ${ev.brief.cliente   ? `<span class="detail-meta-txt">👤 ${h(ev.brief.cliente)}</span>` : ''}
+    ${ev.brief.ubicacion ? `<span class="detail-meta-txt">📍 ${h(ev.brief.ubicacion)}</span>` : ''}`;
+  toast('Brief guardado');
+}
+
+// ══════════════════════════════════════════════
+// TAB: CONTROL PRESUPUESTO (ex-Proveedores)
+// ══════════════════════════════════════════════
+function tPresupuesto(ev) {
+  const IVA = 0.21;
+  let grandSub = 0, grandIva = 0;
+
+  const rows = ev.proveedores.length === 0
+    ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-3)">No hay proveedores. Añade el primero.</td></tr>`
+    : ev.proveedores.map(p => {
+        const cf       = CONFIRMADO[p.confirmado] || CONFIRMADO.pendiente;
+        const precioU  = parseFloat(p.precioUnit || p.precio) || 0;
+        const cantidad = parseInt(p.cantidad) || 1;
+        const subtotal = precioU * cantidad;
+        const iva      = subtotal * IVA;
+        const total    = subtotal + iva;
+        grandSub += subtotal;
+        grandIva += iva;
+        return `
+          <tr>
+            <td><strong>${h(p.nombre)}</strong></td>
+            <td>${h(p.tipoServicio)}</td>
+            <td style="font-size:12px;color:var(--text-2)">${h(p.contacto)}</td>
+            <td><span class="conf-badge ${cf.cls}">${cf.lbl}</span></td>
+            <td style="text-align:center">${cantidad}</td>
+            <td style="font-variant-numeric:tabular-nums">${precioU ? '€'+fmtNum(precioU) : '—'}</td>
+            <td style="font-weight:600;font-variant-numeric:tabular-nums;color:var(--text)">€${fmtNum(total)}</td>
+            <td>
+              <div style="display:flex;gap:3px">
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="editVendor('${p.id}')" title="Editar">✏️</button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="delVendor('${p.id}')" title="Eliminar">🗑</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+
+  const grandTotal = grandSub + grandIva;
+  const confd = ev.proveedores.filter(p => p.confirmado === 'si').length;
+
+  return `
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-title">Proveedores y presupuesto</div>
+        <button class="btn btn-primary btn-sm" onclick="openAddVendor()">+ Añadir proveedor</button>
+      </div>
+      <div class="sumbar">
+        <div class="sumbar-item">Total: <strong>${ev.proveedores.length}</strong></div>
+        <div class="sumbar-item">Confirmados: <strong style="color:var(--s-done)">${confd}/${ev.proveedores.length}</strong></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Proveedor</th><th>Servicio</th><th>Contacto</th>
+              <th>Estado</th><th style="text-align:center">Cant.</th>
+              <th>Precio unit.</th><th>Total c/IVA</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${ev.proveedores.length > 0 ? `
+        <div class="budget-total-box">
+          <div class="budget-row"><span>Subtotal (sin IVA)</span><span style="font-variant-numeric:tabular-nums">€${fmtNum(grandSub)}</span></div>
+          <div class="budget-row"><span>IVA (21%)</span><span style="font-variant-numeric:tabular-nums">€${fmtNum(grandIva)}</span></div>
+          <div class="budget-row final"><span>TOTAL con IVA</span><span style="font-variant-numeric:tabular-nums">€${fmtNum(grandTotal)}</span></div>
+        </div>` : ''}
+    </div>`;
+}
+
+let _vid = null;
+function openAddVendor() {
+  _vid = null;
+  document.getElementById('m-vendor-title').textContent = 'Añadir proveedor';
+  ['vd-nombre','vd-svc','vd-contact','vd-precio','vd-notas'].forEach(id => g(id).value = '');
+  g('vd-cantidad').value = '1';
+  g('vd-conf').value = 'pendiente';
+  openM('m-vendor');
+}
+function editVendor(vid) {
+  const ev = getEv(S.eid), v = ev.proveedores.find(p => p.id === vid);
+  if (!v) return;
+  _vid = vid;
+  document.getElementById('m-vendor-title').textContent = 'Editar proveedor';
+  g('vd-nombre').value   = v.nombre;
+  g('vd-svc').value      = v.tipoServicio;
+  g('vd-contact').value  = v.contacto;
+  g('vd-conf').value     = v.confirmado;
+  g('vd-cantidad').value = v.cantidad || 1;
+  g('vd-precio').value   = v.precioUnit || v.precio || '';
+  g('vd-notas').value    = v.notas;
+  openM('m-vendor');
+}
+function saveVendor() {
+  const nombre = g('vd-nombre').value.trim();
+  if (!nombre) { toast('El nombre es obligatorio', false); return; }
+  const vd = {
+    nombre,
+    tipoServicio: g('vd-svc').value.trim(),
+    contacto:     g('vd-contact').value.trim(),
+    confirmado:   g('vd-conf').value,
+    cantidad:     parseInt(g('vd-cantidad').value) || 1,
+    precioUnit:   parseFloat(g('vd-precio').value) || 0,
+    notas:        g('vd-notas').value.trim(),
+  };
+  mutEv(S.eid, ev => ({
+    ...ev,
+    proveedores: _vid
+      ? ev.proveedores.map(p => p.id === _vid ? { ...p, ...vd } : p)
+      : [...ev.proveedores, { id: uid(), ...vd }]
+  }));
+  closeM('m-vendor');
+  toast(_vid ? 'Proveedor actualizado' : 'Proveedor añadido');
+  document.getElementById('tc-proveedores').innerHTML = tPresupuesto(getEv(S.eid));
+}
+function delVendor(vid) {
+  confirm('¿Eliminar proveedor?', 'Esta acción no se puede deshacer.', 'btn-danger', 'Eliminar', () => {
+    mutEv(S.eid, ev => ({ ...ev, proveedores: ev.proveedores.filter(p => p.id !== vid) }));
+    toast('Proveedor eliminado');
+    document.getElementById('tc-proveedores').innerHTML = tPresupuesto(getEv(S.eid));
+  });
+}
+
+// ══════════════════════════════════════════════
+// TAB: MATERIALES
+// ══════════════════════════════════════════════
+function tMateriales(ev) {
+  const done = ev.materiales.filter(m => m.estado === 'listo').length;
+  const tot  = ev.materiales.length;
+  const pct  = tot ? Math.round(done / tot * 100) : 0;
+
+  return `
+    <div class="section">
+      <div class="sec-head"><div class="sec-title">Checklist de materiales y logística</div></div>
+      ${tot > 0 ? `
+        <div class="prog-lbl"><span>${done} de ${tot} completados</span><span>${pct}%</span></div>
+        <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>
+        <div style="margin-bottom:14px"></div>` : ''}
+      <div class="checklist" id="mat-list">
+        ${ev.materiales.length === 0
+          ? `<p style="color:var(--text-3);font-size:13px;padding:12px 0">Añade materiales o ítems de logística.</p>`
+          : ev.materiales.map(m => `
+            <div class="cl-item ${m.estado==='listo'?'done':''}" onclick="togMat('${m.id}')">
+              <div class="cl-box">${m.estado==='listo'?'✓':''}</div>
+              <span class="cl-text">${h(m.nombre)}</span>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();delMat('${m.id}')" title="Quitar">×</button>
+            </div>`).join('')}
+      </div>
+      <div class="add-row">
+        <input id="mat-new" type="text" placeholder="Añadir material o tarea…" onkeydown="if(event.key==='Enter')addMat()">
+        <button class="btn btn-primary" onclick="addMat()">Añadir</button>
+      </div>
+    </div>`;
+}
+
+function addMat() {
+  const inp = g('mat-new'), n = inp.value.trim(); if (!n) return;
+  mutEv(S.eid, ev => ({ ...ev, materiales: [...ev.materiales, { id: uid(), nombre: n, estado: 'pendiente' }] }));
+  inp.value = '';
+  document.getElementById('tc-materiales').innerHTML = tMateriales(getEv(S.eid));
+  g('mat-new').focus();
+}
+function togMat(id) {
+  mutEv(S.eid, ev => ({ ...ev, materiales: ev.materiales.map(m => m.id===id ? { ...m, estado: m.estado==='listo'?'pendiente':'listo' } : m) }));
+  document.getElementById('tc-materiales').innerHTML = tMateriales(getEv(S.eid));
+}
+function delMat(id) {
+  mutEv(S.eid, ev => ({ ...ev, materiales: ev.materiales.filter(m => m.id !== id) }));
+  document.getElementById('tc-materiales').innerHTML = tMateriales(getEv(S.eid));
+}
+
+// ══════════════════════════════════════════════
+// TAB: PROGRAMA (agenda)
+// ══════════════════════════════════════════════
+function isAgendaPast(ev, item) {
+  if (!item.hora) return false;
+  const eventDate = ev.brief.fechaInicio || ev.brief.fecha;
+  if (!eventDate) return false;
+  const itemDt = new Date(eventDate + 'T' + item.hora + ':00');
+  return itemDt < new Date();
+}
+
+function tPrograma(ev) {
+  const items = (ev.programa || []).slice().sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+  const notas = ev.programaNotas !== undefined ? ev.programaNotas : (ev.durante ? ev.durante.notas : '');
+
+  const agendaHtml = items.length === 0
+    ? `<p style="color:var(--text-3);font-size:13px;padding:12px 0">Sin ítems de agenda. Añade el primero.</p>`
+    : `<div class="agenda-list">${items.map(item => {
+        const past = isAgendaPast(ev, item);
+        return `
+          <div class="agenda-item${past ? ' past' : ''}">
+            <div class="agenda-time">${h(item.hora) || '—'}</div>
+            <div class="agenda-body">
+              <div class="agenda-desc">${h(item.descripcion)}</div>
+              ${item.responsable ? `<div class="agenda-resp">👤 ${h(item.responsable)}</div>` : ''}
+            </div>
+            <div class="agenda-actions">
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="editAgenda('${item.id}')" title="Editar">✏️</button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="delAgenda('${item.id}')" title="Eliminar">🗑</button>
+            </div>
+          </div>`;
+      }).join('')}</div>`;
+
+  return `
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-title">Agenda del evento</div>
+        <button class="btn btn-primary btn-sm" onclick="openAddAgenda()">+ Añadir ítem</button>
+      </div>
+      ${agendaHtml}
+    </div>
+    <div class="section">
+      <div class="sec-head"><div class="sec-title">Notas en tiempo real</div></div>
+      <div class="fg">
+        <label>Anotaciones durante el evento</label>
+        <textarea id="prog-notas" rows="9" placeholder="Incidencias, cambios de última hora, observaciones…">${h(notas)}</textarea>
+      </div>
+      <div class="save-row">
+        <button class="btn btn-primary" onclick="saveProgNotas()">Guardar notas</button>
+      </div>
+    </div>`;
+}
+
+let _aid = null;
+function openAddAgenda() { _aid = null; showAgendaDlg(null); }
+function editAgenda(id) {
+  const ev = getEv(S.eid);
+  const item = (ev.programa || []).find(a => a.id === id);
+  if (!item) return;
+  _aid = id;
+  showAgendaDlg(item);
+}
+function showAgendaDlg(item) {
+  document.getElementById('dlg').innerHTML = `
+    <div class="dlg-ov">
+      <div class="dlg-box" style="max-width:460px">
+        <h3>${item ? 'Editar ítem de agenda' : 'Añadir ítem de agenda'}</h3>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="fg">
+            <label>Hora *</label>
+            <input id="ag-hora" type="time" value="${item ? a(item.hora) : ''}">
+          </div>
+          <div class="fg">
+            <label>Responsable</label>
+            <input id="ag-resp" type="text" value="${item ? a(item.responsable) : ''}" placeholder="Nombre del responsable">
+          </div>
+          <div class="fg full">
+            <label>Descripción *</label>
+            <input id="ag-desc" type="text" value="${item ? a(item.descripcion) : ''}" placeholder="Descripción del momento">
+          </div>
+        </div>
+        <div class="dlg-foot" style="margin-top:16px">
+          <button class="btn btn-secondary" onclick="closeDlg()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveAgenda()">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  setTimeout(() => g('ag-hora') && g('ag-hora').focus(), 50);
+}
+function saveAgenda() {
+  const hora = g('ag-hora').value;
+  const desc = g('ag-desc').value.trim();
+  if (!hora) { toast('La hora es obligatoria', false); return; }
+  if (!desc) { toast('La descripción es obligatoria', false); return; }
+  const item = { hora, descripcion: desc, responsable: g('ag-resp').value.trim() };
+  mutEv(S.eid, ev => ({
+    ...ev,
+    programa: _aid
+      ? (ev.programa || []).map(a => a.id === _aid ? { ...a, ...item } : a)
+      : [...(ev.programa || []), { id: uid(), ...item }]
+  }));
+  closeDlg();
+  toast(_aid ? 'Ítem actualizado' : 'Ítem añadido');
+  document.getElementById('tc-programa').innerHTML = tPrograma(getEv(S.eid));
+}
+function delAgenda(id) {
+  confirm('¿Eliminar ítem?', 'Esta acción no se puede deshacer.', 'btn-danger', 'Eliminar', () => {
+    const notas = g('prog-notas') ? g('prog-notas').value : null;
+    mutEv(S.eid, ev => ({
+      ...ev,
+      programa: (ev.programa || []).filter(a => a.id !== id),
+      programaNotas: notas !== null ? notas : (ev.programaNotas || ''),
+    }));
+    toast('Ítem eliminado');
+    document.getElementById('tc-programa').innerHTML = tPrograma(getEv(S.eid));
+  });
+}
+function saveProgNotas() {
+  mutEv(S.eid, ev => ({ ...ev, programaNotas: g('prog-notas').value }));
+  toast('Notas guardadas');
+}
+
+// ══════════════════════════════════════════════
+// TAB: POST-EVENTO
+// ══════════════════════════════════════════════
+function tPostEvento(ev) {
+  const p = ev.postEvento;
+  const stars = [1,2,3,4,5].map(i =>
+    `<span class="star ${i <= p.satisfaccionCliente ? 'on' : ''}" onclick="setStar(${i})">★</span>`
+  ).join('');
+
+  const fuItems = p.tareasFollowUp.length === 0
+    ? `<p style="color:var(--text-3);font-size:13px;padding:8px 0">Sin tareas de seguimiento pendientes.</p>`
+    : p.tareasFollowUp.map(t => `
+        <div class="cl-item ${t.estado==='listo'?'done':''}" onclick="togFU('${t.id}')">
+          <div class="cl-box">${t.estado==='listo'?'✓':''}</div>
+          <span class="cl-text">${h(t.tarea)}</span>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();delFU('${t.id}')" title="Quitar">×</button>
+        </div>`).join('');
+
+  return `
+    <div class="section">
+      <div class="sec-head"><div class="sec-title">Resumen del evento</div></div>
+      <div class="form-grid">
+        <div class="fg full">
+          <label>¿Qué salió bien?</label>
+          <textarea id="pe-bien" rows="4" placeholder="Aspectos positivos, logros, ejecución…">${h(p.queSalioBien)}</textarea>
+        </div>
+        <div class="fg full">
+          <label>¿Qué mejorar?</label>
+          <textarea id="pe-mejorar" rows="4" placeholder="Incidencias, puntos de mejora, aprendizajes…">${h(p.queMejorar)}</textarea>
+        </div>
+        <div class="fg">
+          <label>Asistencia real</label>
+          <input id="pe-asist" type="number" value="${a(p.asistenciaReal)}" placeholder="Nº de asistentes" min="0">
+        </div>
+        <div class="fg">
+          <label>Satisfacción del cliente</label>
+          <div class="stars" id="pe-stars">${stars}</div>
+          <input type="hidden" id="pe-sv" value="${p.satisfaccionCliente}">
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px">${p.satisfaccionCliente > 0 ? p.satisfaccionCliente + ' / 5' : 'Sin valorar'}</div>
+        </div>
+        <div class="fg full">
+          <label>Comentarios del cliente</label>
+          <textarea id="pe-feedback" rows="4" placeholder="Escribe aquí los comentarios literales del cliente…">${h(p.feedbackCliente || '')}</textarea>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="btn btn-primary" onclick="savePost()">Guardar resumen</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-head"><div class="sec-title">Tareas de seguimiento</div></div>
+      <div class="checklist">${fuItems}</div>
+      <div class="add-row">
+        <input id="fu-new" type="text" placeholder="Añadir tarea de seguimiento…" onkeydown="if(event.key==='Enter')addFU()">
+        <button class="btn btn-primary" onclick="addFU()">Añadir</button>
+      </div>
+    </div>`;
+}
+
+function setStar(n) {
+  mutEv(S.eid, ev => ({ ...ev, postEvento: { ...ev.postEvento, satisfaccionCliente: n } }));
+  document.querySelectorAll('#pe-stars .star').forEach((s,i) => s.classList.toggle('on', i < n));
+  g('pe-sv').value = n;
+  toast('Valoración guardada');
+}
+function savePost() {
+  mutEv(S.eid, ev => ({
+    ...ev,
+    postEvento: {
+      ...ev.postEvento,
+      queSalioBien:        g('pe-bien').value.trim(),
+      queMejorar:          g('pe-mejorar').value.trim(),
+      asistenciaReal:      g('pe-asist').value,
+      satisfaccionCliente: parseInt(g('pe-sv').value) || 0,
+      feedbackCliente:     g('pe-feedback').value.trim(),
+    }
+  }));
+  toast('Post-evento guardado');
+}
+function addFU() {
+  const inp = g('fu-new'), t = inp.value.trim(); if (!t) return;
+  const bien     = g('pe-bien')     ? g('pe-bien').value     : null;
+  const mejorar  = g('pe-mejorar')  ? g('pe-mejorar').value  : null;
+  const asist    = g('pe-asist')    ? g('pe-asist').value     : null;
+  const sv       = g('pe-sv')       ? parseInt(g('pe-sv').value) || 0 : null;
+  const feedback = g('pe-feedback') ? g('pe-feedback').value  : null;
+  mutEv(S.eid, ev => ({
+    ...ev,
+    postEvento: {
+      queSalioBien:        bien     !== null ? bien     : ev.postEvento.queSalioBien,
+      queMejorar:          mejorar  !== null ? mejorar  : ev.postEvento.queMejorar,
+      asistenciaReal:      asist    !== null ? asist    : ev.postEvento.asistenciaReal,
+      satisfaccionCliente: sv       !== null ? sv       : ev.postEvento.satisfaccionCliente,
+      feedbackCliente:     feedback !== null ? feedback : (ev.postEvento.feedbackCliente || ''),
+      tareasFollowUp: [...ev.postEvento.tareasFollowUp, { id: uid(), tarea: t, estado: 'pendiente' }],
+    }
+  }));
+  inp.value = '';
+  document.getElementById('tc-postevento').innerHTML = tPostEvento(getEv(S.eid));
+  g('fu-new').focus();
+}
+function togFU(id) {
+  mutEv(S.eid, ev => ({
+    ...ev,
+    postEvento: {
+      ...ev.postEvento,
+      tareasFollowUp: ev.postEvento.tareasFollowUp.map(t => t.id===id ? { ...t, estado: t.estado==='listo'?'pendiente':'listo' } : t)
+    }
+  }));
+  document.getElementById('tc-postevento').innerHTML = tPostEvento(getEv(S.eid));
+}
+function delFU(id) {
+  mutEv(S.eid, ev => ({
+    ...ev,
+    postEvento: { ...ev.postEvento, tareasFollowUp: ev.postEvento.tareasFollowUp.filter(t => t.id !== id) }
+  }));
+  document.getElementById('tc-postevento').innerHTML = tPostEvento(getEv(S.eid));
+}
+
+// ══════════════════════════════════════════════
+// TAB: ARCHIVOS
+// ══════════════════════════════════════════════
+function tArchivos(ev) {
+  const archivos = ev.archivos || [];
+
+  const filesHtml = archivos.length === 0
+    ? `<div class="empty-state" style="padding:40px 24px">
+        <div class="empty-icon">📎</div>
+        <h3>Sin archivos adjuntos</h3>
+        <p>Sube PDFs, imágenes u otros documentos del evento.</p>
+       </div>`
+    : `<div class="files-grid">${archivos.map(f => {
+        const isImage = f.tipo && f.tipo.startsWith('image/');
+        const thumb   = isImage
+          ? `<img src="${getFileUrl(f.path)}" class="file-thumb" alt="${h(f.nombre)}">`
+          : `<div class="file-icon">📄</div>`;
+        const dateStr = f.subidoEn ? fmtDate(f.subidoEn.split('T')[0]) : '—';
+        const sizeStr = f.tamaño ? fmtFileSize(f.tamaño) : '';
+        return `
+          <div class="file-item">
+            ${thumb}
+            <div class="file-info">
+              <div class="file-name" title="${h(f.nombre)}">${h(f.nombre)}</div>
+              <div class="file-meta">${dateStr}${sizeStr ? ' · ' + sizeStr : ''}</div>
+            </div>
+            <div class="file-actions">
+              <a href="${getFileUrl(f.path)}" target="_blank" download="${h(f.nombre)}" class="btn btn-secondary btn-sm">Descargar</a>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="delArchivo('${f.id}','${f.path}')" title="Eliminar">🗑</button>
+            </div>
+          </div>`;
+      }).join('')}</div>`;
+
+  return `
+    <div class="section">
+      <div class="sec-head">
+        <div class="sec-title">Archivos del evento</div>
+        <div>
+          <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="handleFileUpload(event)">
+          <button class="btn btn-primary btn-sm" onclick="g('file-input').click()">+ Subir archivo</button>
+        </div>
+      </div>
+      ${filesHtml}
+    </div>`;
+}
+
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const allowed = ['image/png', 'image/jpeg', 'application/pdf'];
+  if (!allowed.includes(file.type)) {
+    toast('Solo se permiten PDF, PNG y JPG', false);
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    toast('El archivo no puede superar 20 MB', false);
+    return;
+  }
+
+  toast('Subiendo archivo…');
+  try {
+    const path = await uploadFile(S.eid, file);
+    const meta = {
+      id: uid(), nombre: file.name, tipo: file.type,
+      path, subidoEn: new Date().toISOString(), tamaño: file.size,
+    };
+    mutEv(S.eid, ev => ({ ...ev, archivos: [...(ev.archivos || []), meta] }));
+    toast('✓ Archivo subido');
+    document.getElementById('tc-archivos').innerHTML = tArchivos(getEv(S.eid));
+  } catch (err) {
+    toast('Error al subir: ' + err.message, false);
+  }
+}
+
+function delArchivo(id, path) {
+  confirm('¿Eliminar archivo?', 'Se borrará de Supabase Storage. Esta acción no se puede deshacer.', 'btn-danger', 'Eliminar', async () => {
+    try { await deleteFile(path); } catch (e) { console.warn('Storage delete failed:', e); }
+    mutEv(S.eid, ev => ({ ...ev, archivos: (ev.archivos || []).filter(f => f.id !== id) }));
+    toast('Archivo eliminado');
+    document.getElementById('tc-archivos').innerHTML = tArchivos(getEv(S.eid));
+  });
+}
+
+// ══════════════════════════════════════════════
+// SAMPLE DATA
+// ══════════════════════════════════════════════
+function buildSampleEvents() {
+  return [
+    {
+      id: uid(), creadoEn: new Date().toISOString(), estado: 'preparacion',
+      brief: {
+        nombre: 'Team Building Primavera — TechCorp',
+        cliente: 'TechCorp Solutions', tipoCliente: 'externo',
+        fechaInicio: '2025-05-15', fechaFin: '2025-05-16',
+        horaInicio: '09:00', horaFin: '18:00',
+        ubicacion: 'Masia Can Torrents, Barcelona',
+        formato: 'teambuilding', asistentesEsperados: '65',
+        objetivos: 'Reforzar la cohesión del equipo de producto tras la fusión de dos departamentos.',
+        notas: 'Cliente prefiere catering vegano. Confirmar parking para minibús.',
+      },
+      proveedores: [
+        { id: uid(), nombre: 'Catering La Huerta', tipoServicio: 'Catering', contacto: 'laura@lahuerta.com', confirmado: 'si', cantidad: 65, precioUnit: 48, notas: 'Menú vegano certificado.' },
+        { id: uid(), nombre: 'SoundPro AV', tipoServicio: 'Audio y video', contacto: '612 345 678', confirmado: 'pendiente', cantidad: 1, precioUnit: 950, notas: 'Presupuesto pendiente.' },
+        { id: uid(), nombre: 'Transportes Roca', tipoServicio: 'Transporte', contacto: 'reservas@rocabus.com', confirmado: 'si', cantidad: 2, precioUnit: 240, notas: 'Minibús 20 pax.' },
+      ],
+      materiales: [
+        { id: uid(), nombre: 'Impresión de dossiers (70 uds)', estado: 'listo' },
+        { id: uid(), nombre: 'Equipos de actividades outdoor', estado: 'listo' },
+        { id: uid(), nombre: 'Señalización y carteles', estado: 'pendiente' },
+        { id: uid(), nombre: 'Photocall con logo cliente', estado: 'pendiente' },
+        { id: uid(), nombre: 'Bolsas regalo participantes', estado: 'pendiente' },
+      ],
+      programa: [
+        { id: uid(), hora: '09:00', descripcion: 'Recepción y registro de participantes', responsable: 'Ana García' },
+        { id: uid(), hora: '09:30', descripcion: 'Bienvenida y presentación del programa', responsable: 'Marc Torres' },
+        { id: uid(), hora: '10:00', descripcion: 'Actividad outdoor — circuito de equipos', responsable: 'Equipo de facilitadores' },
+        { id: uid(), hora: '13:30', descripcion: 'Almuerzo networking', responsable: 'Catering La Huerta' },
+        { id: uid(), hora: '15:00', descripcion: 'Taller de comunicación y liderazgo', responsable: 'Marc Torres' },
+        { id: uid(), hora: '17:30', descripcion: 'Cierre y entrega de reconocimientos', responsable: 'Ana García' },
+      ],
+      programaNotas: '',
+      postEvento: {
+        queSalioBien: '', queMejorar: '', asistenciaReal: '',
+        satisfaccionCliente: 0, feedbackCliente: '', tareasFollowUp: [
+          { id: uid(), tarea: 'Enviar fotos al cliente', estado: 'pendiente' },
+          { id: uid(), tarea: 'Enviar encuesta de satisfacción', estado: 'pendiente' },
+        ]
+      },
+      archivos: [],
+    },
+    {
+      id: uid(), creadoEn: new Date(Date.now() - 30*24*60*60*1000).toISOString(), estado: 'finalizado',
+      brief: {
+        nombre: 'Networking Startups BCN — Q1',
+        cliente: 'Barcelona Tech Hub', tipoCliente: 'externo',
+        fechaInicio: '2025-03-05', fechaFin: '2025-03-05',
+        horaInicio: '18:30', horaFin: '22:00',
+        ubicacion: 'Espai Talent, Barcelona',
+        formato: 'networking', asistentesEsperados: '120',
+        objetivos: 'Crear un espacio de conexión para founders y equipos de startups.',
+        notas: '',
+      },
+      proveedores: [
+        { id: uid(), nombre: 'Catering Tapas & Co.', tipoServicio: 'Catering', contacto: 'info@tapasandco.es', confirmado: 'si', cantidad: 120, precioUnit: 15, notas: '' },
+        { id: uid(), nombre: 'DJ Mixer Events', tipoServicio: 'Música ambiente', contacto: '655 789 012', confirmado: 'si', cantidad: 1, precioUnit: 350, notas: 'Set de 3h.' },
+      ],
+      materiales: [
+        { id: uid(), nombre: 'Tarjetas de registro QR', estado: 'listo' },
+        { id: uid(), nombre: 'Roll-ups y banners', estado: 'listo' },
+        { id: uid(), nombre: 'Bolígrafos y libretas', estado: 'listo' },
+      ],
+      programa: [
+        { id: uid(), hora: '18:00', descripcion: 'Montaje y preparación del espacio', responsable: 'Equipo EventPro' },
+        { id: uid(), hora: '18:30', descripcion: 'Apertura de puertas y registro QR', responsable: 'Laura Sáez' },
+        { id: uid(), hora: '19:15', descripcion: 'Speed networking (3 rondas × 5 min)', responsable: 'Marc Torres' },
+        { id: uid(), hora: '20:30', descripcion: 'Ponencia invitada: "Fundraising en 2025"', responsable: 'Speaker externo' },
+        { id: uid(), hora: '21:15', descripcion: 'Networking libre + catering', responsable: 'Catering Tapas & Co.' },
+        { id: uid(), hora: '22:00', descripcion: 'Cierre y desmontaje', responsable: 'Equipo EventPro' },
+      ],
+      programaNotas: 'Todo salió según lo planificado. La sala se llenó a las 19:15h.',
+      postEvento: {
+        queSalioBien: 'Excelente ambiente desde el inicio. El speed networking fue el punto más valorado.',
+        queMejorar: 'Faltó señalización exterior. Registros QR lentos al principio.',
+        asistenciaReal: '113', satisfaccionCliente: 5,
+        feedbackCliente: '"Fue el mejor networking que hemos organizado hasta la fecha. Muy bien ejecutado y los asistentes salieron encantados. Repetimos seguro en Q2."',
+        tareasFollowUp: [
+          { id: uid(), tarea: 'Enviar resumen + fotos a asistentes', estado: 'listo' },
+          { id: uid(), tarea: 'Confirmar fecha Q2 con cliente', estado: 'pendiente' },
+        ]
+      },
+      archivos: [],
+    },
+  ];
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function h(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function a(s) { if (!s) return ''; return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function g(id) { return document.getElementById(id); }
+function fmtDate(d) { try { return new Date(d+'T00:00:00').toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' }); } catch { return d; } }
+function fmtNum(n)  { return (parseFloat(n)||0).toLocaleString('es-ES', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+function fmtFileSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(1) + ' MB';
+}
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+dbInit();
+</script>
+</body>
+</html>
