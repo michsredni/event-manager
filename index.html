@@ -478,21 +478,9 @@
 <!-- ===== LOADING SCREEN ===== -->
 <div id="loading-screen">
   <div class="spinner"></div>
-  <div class="loading-txt" id="loading-txt">Conectando con la nube…</div>
+  <div class="loading-txt" id="loading-txt">Cargando…</div>
 </div>
 
-<!-- ===== SETUP MODAL ===== -->
-<div id="setup-modal">
-  <div class="setup-box">
-    <h2>⚙️ Configuración inicial de Supabase</h2>
-    <p>No se pudo crear la tabla automáticamente. Ejecuta este SQL en el <strong>Editor SQL de tu proyecto Supabase</strong> y luego haz clic en "Continuar".</p>
-    <div class="sql-block" id="setup-sql"></div>
-    <div class="setup-actions">
-      <button class="btn btn-secondary" onclick="copySql()">Copiar SQL</button>
-      <button class="btn btn-primary" onclick="retryAfterSetup()">Ya ejecuté el SQL — Continuar →</button>
-    </div>
-  </div>
-</div>
 
 <!-- ===== HEADER ===== -->
 <header class="app-header">
@@ -504,7 +492,7 @@
     <div style="display:flex;align-items:center;gap:16px">
       <div class="sync-indicator">
         <div class="sync-dot" id="sync-dot"></div>
-        <span class="sync-txt" id="sync-txt">Conectando…</span>
+        <span class="sync-txt" id="sync-txt">Guardado</span>
       </div>
       <div id="hdr-right"></div>
     </div>
@@ -669,231 +657,80 @@
 
 <script>
 // ══════════════════════════════════════════════
-// SUPABASE CONFIG
+// LOCAL STORAGE
 // ══════════════════════════════════════════════
-const SB_URL = 'https://vphtiauvzgtbzdssqfai.supabase.co';
-const SB_KEY = 'sb_publishable_CCGkQTElQhS56Ah4bNy1jA_5P7pk71r';
-const API         = SB_URL + '/rest/v1';
-const STORAGE_URL = SB_URL + '/storage/v1';
-const HDRS = {
-  'apikey':        SB_KEY,
-  'Authorization': 'Bearer ' + SB_KEY,
-  'Content-Type':  'application/json',
-};
+const LS_KEY = 'eventpro_events';
 
-const SETUP_SQL = `-- Run this in your Supabase SQL Editor
-
--- 1. Events table
-create table if not exists events (
-  id          text        primary key,
-  created_at  timestamptz not null default now(),
-  estado      text        not null default 'preparacion',
-  data        jsonb       not null default '{}'
-);
-alter table events disable row level security;
-
--- 2. Storage bucket for event files
-insert into storage.buckets (id, name, public)
-values ('event-files', 'event-files', true)
-on conflict (id) do nothing;
-
--- 3. Storage access policies
-drop policy if exists "event-files-select" on storage.objects;
-drop policy if exists "event-files-insert" on storage.objects;
-drop policy if exists "event-files-delete" on storage.objects;
-create policy "event-files-select" on storage.objects
-  for select using (bucket_id = 'event-files');
-create policy "event-files-insert" on storage.objects
-  for insert with check (bucket_id = 'event-files');
-create policy "event-files-delete" on storage.objects
-  for delete using (bucket_id = 'event-files');`;
-
-// ══════════════════════════════════════════════
-// IN-MEMORY CACHE
-// ══════════════════════════════════════════════
 let _events    = [];
-let _syncState = 'connecting';
+let _syncState = 'ok';
 
-function setSyncState(s, txt) {
+function setSyncState(s) {
   _syncState = s;
   const dot = document.getElementById('sync-dot');
   const lbl = document.getElementById('sync-txt');
   if (!dot) return;
   dot.className = 'sync-dot ' + s;
-  lbl.textContent = { connecting: 'Conectando…', ok: 'Sincronizado', syncing: 'Guardando…', error: 'Error de conexión' }[s] || s;
+  lbl.textContent = { ok: 'Guardado', syncing: 'Guardando…', error: 'Error al guardar' }[s] || s;
 }
 
-// ══════════════════════════════════════════════
-// SUPABASE REST HELPERS
-// ══════════════════════════════════════════════
-async function sbFetch(path, opts = {}) {
-  const res = await fetch(API + path, { headers: HDRS, ...opts });
-  if (!res.ok) {
-    const body = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status}: ${body}`);
-  }
-  return res;
-}
-
-async function dbLoad() {
-  const res = await sbFetch('/events?order=created_at.desc', {
-    headers: { ...HDRS, Accept: 'application/json' }
-  });
-  const rows = await res.json();
-  _events = rows.map(r => ({ ...r.data, id: r.id, creadoEn: r.created_at, estado: r.estado }));
-}
-
-async function dbUpsert(ev) {
+function lsSave() {
   setSyncState('syncing');
   try {
-    await sbFetch('/events', {
-      method:  'POST',
-      headers: { ...HDRS, Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ id: ev.id, created_at: ev.creadoEn, estado: ev.estado, data: ev }),
-    });
+    localStorage.setItem(LS_KEY, JSON.stringify(_events));
     setSyncState('ok');
-  } catch (err) {
+  } catch (e) {
     setSyncState('error');
-    console.error('Supabase upsert error:', err);
-    throw err;
+    console.error('localStorage save error:', e);
+    throw e;
   }
 }
 
-async function dbDelete(id) {
-  setSyncState('syncing');
-  try {
-    await sbFetch(`/events?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
-    setSyncState('ok');
-  } catch (err) {
-    setSyncState('error');
-    throw err;
-  }
+function dbUpsert(ev) {
+  const i = _events.findIndex(e => e.id === ev.id);
+  if (i >= 0) _events[i] = ev; else _events.unshift(ev);
+  lsSave();
+  return Promise.resolve();
+}
+
+function dbDelete(id) {
+  _events = _events.filter(e => e.id !== id);
+  lsSave();
+  return Promise.resolve();
 }
 
 // ══════════════════════════════════════════════
-// SUPABASE STORAGE HELPERS
+// FILE HELPERS (base64 stored inline)
 // ══════════════════════════════════════════════
-async function uploadFile(eventId, file) {
-  const ext  = file.name.split('.').pop().toLowerCase();
-  const path = `${eventId}/${uid()}.${ext}`;
-  const res  = await fetch(`${STORAGE_URL}/object/event-files/${path}`, {
-    method:  'POST',
-    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': file.type },
-    body: file,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => res.statusText);
-    throw new Error('Storage upload failed: ' + body);
-  }
-  return path;
-}
-
-async function deleteFile(path) {
-  await fetch(`${STORAGE_URL}/object/event-files/${path}`, {
-    method:  'DELETE',
-    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY },
+function uploadFile(eventId, file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
 
-function getFileUrl(path) {
-  return `${STORAGE_URL}/object/public/event-files/${path}`;
-}
+function deleteFile() { return Promise.resolve(); }
 
-// ══════════════════════════════════════════════
-// SCHEMA SETUP
-// ══════════════════════════════════════════════
-async function dbSetup() {
-  try {
-    const res = await fetch(`https://api.supabase.com/v1/projects/vphtiauvzgtbzdssqfai/database/query`, {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: SETUP_SQL }),
-    });
-    if (res.ok) return true;
-  } catch (e) { console.warn('[EventPro] Management API unavailable:', e.message); }
-
-  try {
-    const res = await fetch(`${SB_URL}/pg-meta/v1/query`, {
-      method:  'POST',
-      headers: { ...HDRS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: SETUP_SQL }),
-    });
-    if (res.ok) return true;
-  } catch (e) { console.warn('[EventPro] pg-meta unavailable:', e.message); }
-
-  return false;
-}
+function getFileUrl(path) { return path; }
 
 // ══════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════
-async function dbInit() {
-  setLoadingTxt('Conectando con Supabase…');
-  try {
-    await dbLoad();
-    if (_events.length === 0) {
-      setLoadingTxt('Primera ejecución, cargando datos de ejemplo…');
-      const samples = buildSampleEvents();
-      for (const ev of samples) { await dbUpsert(ev); _events.unshift(ev); }
-    }
-    setSyncState('ok');
-    hideLoading();
-    render();
-  } catch (err) {
-    console.error('[EventPro] Load failed:', err);
-    setLoadingTxt('Creando tabla en Supabase…');
-    const created = await dbSetup();
-    if (created) {
-      try {
-        await dbLoad();
-        if (_events.length === 0) {
-          const samples = buildSampleEvents();
-          for (const ev of samples) { await dbUpsert(ev); _events.unshift(ev); }
-        }
-        setSyncState('ok');
-        hideLoading();
-        render();
-        return;
-      } catch (e2) { console.error('[EventPro] Still failing after setup:', e2); }
-    }
-    hideLoading();
-    showSetupModal();
+function dbInit() {
+  const raw = localStorage.getItem(LS_KEY);
+  _events = raw ? JSON.parse(raw) : [];
+  if (_events.length === 0) {
+    _events = buildSampleEvents();
+    lsSave();
   }
+  setSyncState('ok');
+  hideLoading();
+  render();
 }
 
 function setLoadingTxt(t) { const el = document.getElementById('loading-txt'); if (el) el.textContent = t; }
 function hideLoading()    { const el = document.getElementById('loading-screen'); if (el) el.style.display = 'none'; }
-
-function showSetupModal() {
-  document.getElementById('setup-sql').textContent = SETUP_SQL;
-  document.getElementById('setup-modal').classList.add('open');
-  setSyncState('error');
-}
-
-function copySql() {
-  navigator.clipboard.writeText(SETUP_SQL).then(() => toast('SQL copiado al portapapeles'));
-}
-
-async function retryAfterSetup() {
-  document.getElementById('setup-modal').classList.remove('open');
-  document.getElementById('loading-screen').style.display = 'flex';
-  setLoadingTxt('Conectando…');
-  try {
-    await dbLoad();
-    if (_events.length === 0) {
-      const samples = buildSampleEvents();
-      for (const ev of samples) { await dbUpsert(ev); _events.unshift(ev); }
-    }
-    setSyncState('ok');
-    hideLoading();
-    render();
-  } catch (err) {
-    hideLoading();
-    toast('Aún no se puede conectar. Verifica que ejecutaste el SQL.', false);
-    setSyncState('error');
-    showSetupModal();
-  }
-}
 
 // ══════════════════════════════════════════════
 // STORAGE HELPERS
@@ -906,7 +743,7 @@ function mutEv(id, fn) {
   const i = _events.findIndex(e => e.id === id);
   if (i < 0) return;
   _events[i] = fn(_events[i]);
-  dbUpsert(_events[i]).catch(err => toast('Error al guardar: ' + err.message, false));
+  try { dbUpsert(_events[i]); } catch (err) { toast('Error al guardar', false); }
 }
 
 // ══════════════════════════════════════════════
@@ -1127,9 +964,10 @@ function renderDash() {
 
   grid.innerHTML = list.map(ev => {
     const st      = ESTADO[ev.estado] || ESTADO.preparacion;
-    const fmt     = FORMATO[ev.brief.formato] || ev.brief.formato;
-    const vConf   = ev.proveedores.filter(p => p.confirmado === 'si').length;
-    const mDone   = ev.materiales.filter(m => m.estado === 'listo').length;
+    const brief   = ev.brief || {};
+    const fmt     = FORMATO[brief.formato] || brief.formato || '';
+    const vConf   = (ev.proveedores || []).filter(p => p.confirmado === 'si').length;
+    const mDone   = (ev.materiales  || []).filter(m => m.estado === 'listo').length;
     const fechaTxt = evDateDisplay(ev.brief) || 'Sin fecha';
 
     // Grand total with IVA
